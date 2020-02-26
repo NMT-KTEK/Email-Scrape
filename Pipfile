@@ -1,0 +1,21 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+prompt-toolkit = "*"
+ptpython = "*"
+pylint = "*"
+
+[packages]
+bs4 = "*"
+imapclient = "*"
+pycurl = "*"
+progressbar2 = "*"
+pyyaml = "*"
+requests = "*"
+lxml = "*"
+
+[requires]
+python_version = "3.8"

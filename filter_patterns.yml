@@ -1,0 +1,353 @@
+regex:
+    - ymlp\w*\d+
+    - support\..+
+    - .*\.?apple\.co
+    - .+\.docusign\.com
+    - fiverr\.com
+    - amazon\..+
+    - amzn\..+
+    - help\..+
+    - news\..+
+    - spotify
+    - spoti\.fi
+    - .*\.?nmt\.edu
+    - accounts\.
+    - policies\.
+    - wiki\w*\.org
+    - lnkd\.in
+    - ^\s*forward(\s?this)?(\s?email)?
+    - ^\s*manage
+    - ^\s*online
+    - buy\s?
+    - purchase\s
+    - ^\s*forward\s
+    - ^\s*contact
+    - ^stream$
+    - '@\w+'
+    - ^amazon$
+    - ^wayside$
+    - ibs.+award
+    - \sibs\s
+    - itunes\.apple
+    - \scenter$
+    - \stheater$
+    - \smeeting\shouse$
+    - \smuseum$
+    - \smusic\shall$
+    - press$
+
+text_regex:
+    - \.com/?\.?$
+    - \.net/?\.?$
+    - \.org/?\.?$
+    - \.uk/?\.?$
+
+url_substring:
+    - newsletter
+    - /live
+    - report.mnb.email/t
+    - t.co/redirect?url=http
+    - review
+    - twitter.com
+    - facebook.com
+    - youtube.com
+    - instagram.com
+    - ebay.com
+
+substring:
+    - Read →
+    - submit
+    - find out
+    - nominate
+    - collegebroadcasters
+    - online version
+    - review
+    - video
+    - press assets
+    - ispa.org
+    - overblown.co
+    - college radio
+    - collegeradio.org
+    - '#trending'
+    - dates
+    - web site
+    - /live
+    - to see
+    - sponsor
+    - watch now
+    - my so-called soundtrack
+    - schedule
+    - workshop
+    - univ.
+    - advertise
+    - go to article
+    - wordpress.com
+    - report.mnb.email/t
+    - t.co/redirect?url=http
+    - yahoo
+    - www.arte.tv
+    - glaad.org
+    - hypebeast.com
+    - xxlmag.com
+    - exclaim.ca
+    - thepeoplesassembly.org
+    - cbslocal
+    - clashmucic
+    - huffingtonpost
+    - deviantart
+    - theneedledrop
+    - torontosun
+    - musicnews
+    - bbc.co
+    - washingtonpost
+    - buzzfeed
+    - press kit
+    - awards
+    - volunteer
+    - learn more
+    - tour schedule
+    - signup
+    - /events
+    - conference
+    - mynewsdesk.com
+    - npr.org
+    - contribute to
+    - rvamagazine
+    - start shopping
+    - proaudio
+    - tumblr
+    - free trial
+    - community outreach
+    - buses.org
+    - peopleschoice.com
+    - natpe.com
+    - Serato
+    - check out
+    - check that out
+    - pre-order
+    - preorder
+    - wayside music
+    - complain
+    - licensing
+    - confirm
+    - online store
+    - interesting articles
+    - notify us
+    - shop now 
+    - report unsolicited
+    - concert
+    - send to
+    - report spam
+    - stream via
+    - f o l l o w
+    - dailymotion
+    - stream online
+    - stream the
+    - stream on
+    - view as
+    - view on
+    - view this
+    - view in
+    - instagram
+    - view online
+    - portfolio
+    - pinterest
+    - stream full album
+    - stream album
+    - press release
+    - fill out
+    - tune in
+    - ticket
+    - rsvp
+    - info
+    - like
+    - tweet
+    - print
+    - web version
+    - add us
+    - read this
+    - read more
+    - read online
+    - read it online
+    - read now
+    - click to reset
+    - faq
+    - opt out
+    - preview on
+    - google plus
+    - view it in your browser
+    - terms of service
+    - sheet music
+    - why did i get this
+    - privacy policy
+    - twitter
+    - facebook
+    - instagram
+    - youtu.be
+    - youtube
+    - itunes
+    - play.google.com
+    - unsubscribe
+    - opt_out
+    - profile
+    - about
+    - legal
+    - subscription
+    - subscribe
+    - preferences
+    - update
+    - sign up
+    - blog
+    - enterprise
+    - business
+    - remove
+    - vcard
+    - website
+    - register
+    - linkedin
+    - spotify
+    - amazon.com
+    - follow
+    - twitch.tv
+    - www.aes.org
+    - yutidussa.online
+    - www.pledgemusic.com
+    - www.nyssma.org
+    - eb11.ebhost9.com
+    - www.ysbnow.com
+    - www.theguardian.com
+    - www.eventbrite.ca
+    - www.directiq17..com
+    - www.derbytelegraph.co.uk
+    - www.ascap.com
+    - www.brownpapertickets.com
+    - www.siriusxm.com
+    - www.ces.tech
+    - vk.com
+    - groups.google.com
+    - www.dailyrecord.co.uk
+    - thump.vice.com
+    - www.eventbrite.com
+    - tickets.brightstarevents.com
+    - www.southbankcentre.co.uk
+    - www.ticketmaster.co.uk
+    - squareup.com
+    - gem.godaddy.com
+    - www.vma.org.au
+    - www.vimeo.com
+    - evernote.com
+    - automattic.com
+    - www.ticketmaster.com
+    - www.indiegogo.com
+    - www.namm.org
+    - x5ysv.mjt.lu
+    - www.avast.com
+    - medium.com
+    - channelstore.roku.com
+    - noisey.vice.com
+    - clicks.aweber.com
+    - www.phplist.com
+    - www.nbc.com
+    - static.infowars.com
+    - www.ticketmaster.ie
+    - email.ticketfly.com
+    - www.leedsfilm.com
+    - www.instantseats.com
+    - eastcentral.aaa.com
+    - www.huffingtonpost.com
+    - chrome.google.com
+    - listen.tidal.com
+    - www.freegalmovies.com
+    - www.fiverr.com
+    - www.flickr.com
+    - celebrityaccess.com
+    - www.vh1.com
+    - www.msnbc.com
+    - www..directiq17.com
+    - twitch.tv
+    - gnldr.online
+    - www.gofundme.com
+    - www.bestbuy.com
+    - www.ebay.com
+    - go.microsoft.com
+    - www.tickster.com
+    - www.cmt.com
+    - time.com
+    - epl.paypal-communication.com
+    - www.univision.com
+    - www.cmj.com
+    - www.last.fm
+    - beatport.com
+    - email.fiverr.com
+    - haulix.zendesk.com
+    - uptimerobot.com
+    - itun.es
+    - www.dailymotion.com
+    - www.vine.co
+    - www.mtv.com
+    - www.snapchat.com
+    - genius.com
+    - www.ticketfly.com
+    - www.npr.org
+    - www.telegraph.co.uk
+    - www.rollingstone.ru
+    - www.seetickets.com
+    - www.patreon.com
+    - tunein.com
+    - tidal.com
+    - www.billboard.com
+    - nmt.edu
+    - www.rollingstone.com
+    - www.orbitz.com
+    - www.alt-tickets.co.uk
+    - www.bandsintown.com
+    - edition.cnn.com
+    - email-edg.paypal.com
+    - www.funnyordie.com
+    - uk.pinterest.com
+    - concerts1.livenation.com
+    - i.reddituploads.com
+    - www.abc.net.au
+    - www.revebnation.com
+    - www.redbull.com
+    - pinterest.com
+    - holdmyticket.com
+    - www.vice.com
+    - nmt.instructure.com
+    - www.imdb.com
+    - www.sky.com
+    - mail.google.com
+    - nerdist.com
+    - www.iemmys.tv
+    - www.livenation.com
+    - www.reddit.com
+    - www.pw2you.com
+    - www.twitch.tv
+    - www.paypal.com
+    - www.kickstarter.com
+    - disqus.com
+    - www.latimes.com
+    - i-d.vice.com
+    - www.examinerlive.co.uk
+    - www.laweekly.com
+    - www1.ticketmaster.com
+    - www.gigslutz.co.uk
+    - schedule.sxsw.com
+    - www.alttickets.com
+    - www.mama-event.com
+    - www.huffingtonpost.ca
+    - www.ticketea.com
+    - sptfy.com
+    - email.uber.com
+    - vimeo.com
+    - www.buzzfeed.com
+    - secure.tickets.ie
+    - www.avg.com
+    - www.ticketweb.uk
+    - www.cbc.ca
+    - www.pinterest.com
+    - www.shazam.com
+    - wetransfer.zendesk.com
+    - www.ticketweb.co.uk
+    - www.rollingstone.it
+    - tumblr.com
