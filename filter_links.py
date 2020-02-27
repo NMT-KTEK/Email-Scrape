@@ -109,8 +109,12 @@ def remove_proxy(proxy : str):
     if proxy in PROXIES:
         print("Removing Proxy [{}]".format(proxy))
         PROXIES.remove(proxy)
-        random.shuffle(PROXIES)
-        PROXYPOOL = itertools.cycle(PROXIES)
+        if not len(PROXIES) > 0:
+            get_proxies()
+        else:
+            random.shuffle(PROXIES)
+            PROXYPOOL = itertools.cycle(PROXIES)
+
 
 widgets = [
             ' [', progressbar.Timer(), '] ',
@@ -199,12 +203,27 @@ def check_usefull_and_dup_links(links : list):
     return (links, link_hashes, dup_links, netlocs, hostnames, link_counts)
 
 
+def make_url_safe_bytes(url: str):
+    split_url = urllib.parse.urlsplit(url)
+    split_url.path = urllib.parse.quote(split_url.path)
+    split_url.query = urllib.parse.quote_plus(split_url.query)
+    split_url.fragment = urllib.parse.quote_plus(split_url.fragment)
+    safe_url = urllib.parse.urlunsplit(split_url)
+    try:
+        safe_url_bytes = safe_url.encode('iso-8859-1')
+    except UnicodeEncodeError:
+        safe_url_bytes = None
+    return safe_url_bytes
+
 LinkCurl = namedtuple('LinkCurl', ['link', 'res', 'hndl'])
 def build_curl(link : dict, use_proxy = False):
     global PROXIES
     global PROXYPOOL
     res = BytesIO()
     hndl = pycurl.Curl()
+    safe_url = make_url_safe_bytes(link['href'])
+    if safe_url is None:
+        return None
     hndl.setopt(pycurl.URL, link['href'].encode('iso-8859-1'))
     hndl.setopt(pycurl.USERAGENT, random.choice(USER_AGENTS))
     proxy = ""
@@ -212,13 +231,7 @@ def build_curl(link : dict, use_proxy = False):
         try:
             proxy = next(PROXYPOOL)
         except StopIteration:
-            print("Reloading proxylist from https://free-proxy-list.net/ ...")
-            get_proxies()
-            print("Loaded [{}] proxies.".format(len(PROXIES)))
-            try:
-                proxy = next(PROXYPOOL)
-            except StopIteration:
-                pass
+            print("No Proxies to use: defaulting to no proxy...")
     link['proxy'] = proxy
     hndl.setopt(pycurl.PROXY, proxy)
     hndl.setopt(pycurl.WRITEDATA, res)
@@ -266,6 +279,9 @@ def build_link_batch(batch_links, use_proxy=False):
     curls = []
     for link in batch_links:
         c = build_curl(link, use_proxy)
+        if c is None:
+            print("Unable to make cURL or href [{}]".format(link['href']))
+            continue
         curls.append(c)
         multi.add_handle(c[2])
     return CurlBatch(curlmlti=multi, curls=curls)
@@ -358,7 +374,7 @@ def process_curl_batch(curl_batch, pbar : progressbar.ProgressBar, use_proxy=Fal
 
     return timeouts
 
-def cURL_links(links : list, use_proxy=False):
+def cURL_links(links : list, use_proxy=False, append=False):
     n = LINKS_PER_BATCH
     link_batches = [links[i * n:(i + 1) * n] for i in range((len(links) + n - 1) // n )]
     num_batches = len(link_batches)
@@ -376,26 +392,29 @@ def cURL_links(links : list, use_proxy=False):
             ]
 
     timeouts = 0
-    with progressbar.bar.ProgressBar(widgets=widgets_curl, redirect_stdout=True) as pbar:
-        pbar.max_value = num_batches
-        for b_num, batch in pbar(zip(range(num_batches), link_batches)):
-            print('\nProcessing batch {} ...'.format(b_num + 1))
-            cbatch = build_link_batch(batch, use_proxy)
-            timeouts += process_curl_batch(cbatch, pbar, use_proxy)
+    link_unique_curl = {}
+    fields = ('msgid', 'href', 'str', 'status', 'effective-url', 'redirect-count', 'sha256_link')
+    mode = 'w'
+    if append:
+        mode = 'a'
+    with open(DEDUP_CURL_LINK_FILE, mode, newline='',  encoding='utf-8') as curl_csv:
+        writer = csv.DictWriter(curl_csv, fieldnames=fields)
+        if not append:
+            writer.writeheader()
+        with progressbar.bar.ProgressBar(widgets=widgets_curl, redirect_stdout=True) as pbar:
+            pbar.max_value = num_batches
+            for b_num, batch in pbar(zip(range(num_batches), link_batches)):
+                print('\nProcessing batch {} ...'.format(b_num + 1))
+                cbatch = build_link_batch(batch, use_proxy)
+                timeouts += process_curl_batch(cbatch, pbar, use_proxy)
+                for link in cbatch:
+                    link_unique_curl['sha256_link'] = link
+                    writer.writerow( {k:link[k] for k in link if k in fields} )
+
 
     print("\nProcceed links with [{}] timeout events".format(timeouts))
     
-    print("\nWriting cURL results file....")
-    with progressbar.bar.ProgressBar(max_value=progressbar.UnknownLength, widgets=widgets, redirect_stdout=True) as pbar:
-        pbar.max_value = len(links)
-        fields = ('msgid', 'href', 'str', 'status', 'effective-url', 'redirect-count')
-        with open(DEDUP_CURL_LINK_FILE, 'w', newline='',  encoding='utf-8') as curl_csv:
-            writer = csv.DictWriter(curl_csv, fieldnames=fields)
-            writer.writeheader()
-            for row in pbar(links):
-                writer.writerow( {k:row[k] for k in row if k in fields} )
-    
-    return links
+    return (links, link_unique_curl)
 
 def filter_post_curl_link(link: dict):
     if link['status'] < 400 and link['status'] >= 200:
@@ -417,6 +436,141 @@ def proces_post_curl_links(links: list):
             filter_post_curl_link(link)
     return [l for l in links if l['useful']]
 
+def update_links_curl_hash(links: dict, curl_links: dict):
+    link_unique = {}
+    missing = []
+    for key in links:
+        if key in curl_links:
+            link_unique[key] = curl_links[key]
+        else:
+            link_unique[key] = links[key]
+            missing.append(link_unique[key])
+        if not hasattr(link_unique[key], 'status'):
+            missing.append(link_unique[key])
+        elif link_unique[key]['status']:
+            missing.append(link_unique[key])
+
+    post_curl_links = list(link_unique.values())
+    
+    return (missing, post_curl_links, link_unique)
+
+def load_and_filter_links():
+
+    links = []
+    print("\nReading Links from CSV...")
+    with progressbar.bar.ProgressBar(max_value=progressbar.UnknownLength, widgets=widgets_unknown, redirect_stdout=True) as pbar:
+        with open(LINKS_CSV_FILE, 'r', newline='',  encoding='utf-8') as links_csv:
+            reader = csv.DictReader(links_csv, fieldnames=['msgid', 'href', 'str', 'http', 'dup', 'useful'])
+            for row in pbar(reader):
+                links.append(row)
+
+    print("\nChecking for duplicate or useless links...")
+    links, _, dup_links, netlocs, hostnames, link_counts = check_usefull_and_dup_links(links)
+                
+
+    print("\nWriting extended file....")
+    with progressbar.bar.ProgressBar(max_value=progressbar.UnknownLength, widgets=widgets, redirect_stdout=True) as pbar:
+        pbar.max_value = len(links)
+        with open(CURL_LINKS_CSV_FILE, 'w', newline='',  encoding='utf-8') as links_csv:
+            writer = csv.DictWriter(links_csv, fieldnames=['msgid', 'href', 'str', 'http', 'dup', 'useful'])
+            writer.writeheader()
+            for row in pbar(links):
+                writer.writerow( {k:row[k] for k in row if k != 'sha256_link'} )
+
+    print("\nWriting location list...")
+    with open(NETLOC_FILE, 'w', newline='', encoding='utf-8') as netloc_csv:
+        writer = csv.writer(netloc_csv)
+        writer.writerow(('netloc',))
+        for row in netlocs:
+            writer.writerow((row,))
+
+    print("Writing hostname list...")
+    with open(HOSTNAME_FILE, 'w', newline='', encoding='utf-8') as netloc_csv:
+        writer = csv.writer(netloc_csv)
+        writer.writerow(('hostname',))
+        for row in hostnames:
+            writer.writerow((row,))
+
+    print("Writing duplicate link report...")
+    with progressbar.bar.ProgressBar(widgets=widgets, redirect_stdout=True) as  pbar:  
+        pbar.max_value = len(dup_links)
+        with open(LINK_DUP_FILE, 'w', newline='',  encoding='utf-8') as dups_csv:
+            writer = csv.DictWriter(dups_csv, fieldnames=['href', 'count'])
+            writer.writeheader()
+            for h_key in pbar(dup_links):
+                writer.writerow(link_counts[h_key])
+
+    print("\nWriting de-duplicated useful links file...")
+    link_unique = {}
+    msgids_unique = set()
+    non_dup_links = []
+    with progressbar.bar.ProgressBar(widgets=widgets, redirect_stdout=True) as  pbar:  
+        pbar.max_value = len(links)
+        with open(LINK_DEDUP_FILE, 'w', newline='',  encoding='utf-8') as dedups_csv:
+            fields = ('msgid', 'href', 'str', 'sha256_link')
+            writer = csv.DictWriter(dedups_csv, fieldnames=fields)
+            writer.writeheader()
+            for link in pbar(links):
+                if link['http'] and link['useful'] and link['sha256_link'] not in link_unique:
+                    writer.writerow({k:link[k] for k in link if k in fields})
+                    link_unique[link['sha256_link']] = link
+                    msgids_unique.add(link['msgid'])
+                    non_dup_links.append(link)
+
+    print("\nFound [{}] potentially useful non duplicate links in [{}] Emails.".format(len(link_unique), len(msgids_unique)))
+    
+    return (non_dup_links, link_unique)
+
+def load_filter_links():
+    link_unique = {}
+    msgids_unique = set()
+    non_dup_links = []
+
+    with progressbar.bar.ProgressBar(max_value=progressbar.UnknownLength, widgets=widgets_unknown, redirect_stdout=True) as  pbar:  
+        with open(LINK_DEDUP_FILE, 'w', newline='',  encoding='utf-8') as dedups_csv:
+            fields = ('msgid', 'href', 'str', 'sha256_link') 
+            reader = csv.DictReader(dedups_csv, fieldnames=fields)
+            for row in pbar(reader):
+                non_dup_links.append(row)
+                link_unique[row['sha256_link']] = row
+
+    print("\nFound [{}] potentially useful non duplicate links in [{}] Emails.".format(len(link_unique), len(msgids_unique)))
+
+    return (non_dup_links, link_unique)
+    
+def load_post_curl_links():
+    post_curl_links = []
+    link_unique_curl = {}
+    print("\nReading Links from CSV...")
+    with progressbar.bar.ProgressBar(max_value=progressbar.UnknownLength, widgets=widgets_unknown, redirect_stdout=True) as  pbar:
+        with open(DEDUP_CURL_LINK_FILE, 'r', newline='',  encoding='utf-8') as curl_csv:
+            fields = ('msgid', 'href', 'str', 'status', 'effective-url', 'redirect-count', 'sha256_link')
+            reader = csv.DictReader(curl_csv, fieldnames=fields)
+            for row in pbar(reader):
+                post_curl_links.append(row)
+                link_unique_curl[row['sha256_link']] = row
+    return (post_curl_links, link_unique_curl)
+
+def filter_and_write_post_curl(post_curl_links: list):
+    print("\nFiltering links after cURL results...")
+    filtered_links = proces_post_curl_links(post_curl_links)
+
+    print("Writing links with unique effective-urls...")
+    filtered_write_unique = set()
+    filtered_msgids_unique = set()
+    with progressbar.bar.ProgressBar(widgets=widgets, redirect_stdout=True) as  pbar:  
+        pbar.max_value = len(filtered_links)
+        fields = ('msgid', 'href', 'str', 'effective-url')
+        with open(LINK_DEDUP_CURL_FILE, 'w', newline='',  encoding='utf-8') as dedups_curl_csv:
+            writer = csv.DictWriter(dedups_curl_csv, fieldnames=fields)
+            writer.writeheader()
+            for link in pbar(filtered_links):
+                if link['http'] and link['useful'] and link['sha256_effective-url'] not in filtered_write_unique:
+                    writer.writerow({k:link[k] for k in link if k in fields })
+                    filtered_write_unique.add(link['sha256_effective-url'])
+                    filtered_msgids_unique.add(link['msgid'])
+    
+    print("\nFound [{}] potentially useful non duplicate links in [{}] Emails after cURL.".format(len(filtered_write_unique), len(filtered_msgids_unique)))
 
 if __name__ == "__main__":
 
@@ -468,71 +622,19 @@ if __name__ == "__main__":
 
     # pprint(RegexFilter.pattern)
 
+    run_filter = True
+    if os.path.exists(LINK_DEDUP_FILE):
+        timestamp = os.path.getmtime(LINK_DEDUP_FILE)
+        localmtime = datetime.datetime.fromtimestamp(timestamp).strftime("%H:%M:%S on %a %b %d, %Y")
+        localtime = datetime.datetime.now().strftime("%H:%M:%S on %a %b %d, %Y")
+        question = "Found previous results of link filter\nResults file created at [{}]\nCurrent local time [{}]\nRun filter and replace results?".format(localmtime, localtime)
+        if not yes_or_no(question):
+            run_filter = False
     
-
-    Links = []
-
-    print("\nReading Links from CSV...")
-    with progressbar.bar.ProgressBar(max_value=progressbar.UnknownLength, widgets=widgets_unknown, redirect_stdout=True) as pbar:
-        with open(LINKS_CSV_FILE, 'r', newline='',  encoding='utf-8') as links_csv:
-            reader = csv.DictReader(links_csv, fieldnames=['msgid', 'href', 'str', 'http', 'dup', 'useful'])
-            for row in pbar(reader):
-                Links.append(row)
-
-    print("\nChecking for duplicate or useless links...")
-    Links, Link_Hashes, Dup_Links, Netlocs, Hostnames, Link_Counts = check_usefull_and_dup_links(Links)
-                
-
-    print("\nWriting extended file....")
-    with progressbar.bar.ProgressBar(max_value=progressbar.UnknownLength, widgets=widgets, redirect_stdout=True) as pbar:
-        pbar.max_value = len(Links)
-        with open(CURL_LINKS_CSV_FILE, 'w', newline='',  encoding='utf-8') as links_csv:
-            writer = csv.DictWriter(links_csv, fieldnames=['msgid', 'href', 'str', 'http', 'dup', 'useful'])
-            writer.writeheader()
-            for row in pbar(Links):
-                writer.writerow( {k:row[k] for k in row if k != 'sha256_link'} )
-
-    print("\nWriting location list...")
-    with open(NETLOC_FILE, 'w', newline='', encoding='utf-8') as netloc_csv:
-        writer = csv.writer(netloc_csv)
-        writer.writerow(('netloc',))
-        for row in Netlocs:
-            writer.writerow((row,))
-
-    print("Writing hostname list...")
-    with open(HOSTNAME_FILE, 'w', newline='', encoding='utf-8') as netloc_csv:
-        writer = csv.writer(netloc_csv)
-        writer.writerow(('hostname',))
-        for row in Hostnames:
-            writer.writerow((row,))
-
-    print("Writing duplicate link report...")
-    with progressbar.bar.ProgressBar(widgets=widgets, redirect_stdout=True) as  pbar:  
-        pbar.max_value = len(Dup_Links)
-        with open(LINK_DUP_FILE, 'w', newline='',  encoding='utf-8') as dups_csv:
-            writer = csv.DictWriter(dups_csv, fieldnames=['href', 'count'])
-            writer.writeheader()
-            for h_key in pbar(Dup_Links):
-                writer.writerow(Link_Counts[h_key])
-
-    print("\nWriting de-duplicated useful links file...")
-    write_unique = set()
-    msgids_unique = set()
-    non_dup_links = []
-    with progressbar.bar.ProgressBar(widgets=widgets, redirect_stdout=True) as  pbar:  
-        pbar.max_value = len(Links)
-        with open(LINK_DEDUP_FILE, 'w', newline='',  encoding='utf-8') as dedups_csv:
-            writer = csv.DictWriter(dedups_csv, fieldnames=['msgid', 'href', 'str'])
-            writer.writeheader()
-            for link in pbar(Links):
-                if link['http'] and link['useful'] and link['sha256_link'] not in write_unique:
-                    writer.writerow({k:link[k] for k in link if k in ('msgid', 'href', 'str') })
-                    write_unique.add(link['sha256_link'])
-                    msgids_unique.add(link['msgid'])
-                    non_dup_links.append(link)
-
-    print("\nFound [{}] potentially useful non duplicate links in [{}] Emails.".format(len(write_unique), len(msgids_unique)))
-
+    if run_filter:
+        non_dup_links, link_unique = load_and_filter_links()
+    else:
+        non_dup_links, link_unique = load_filter_links()
     
     if yes_or_no("Hit found links with cURL and then use the effective_URL and HTTP status to filter further?"):
         gen_cURL = True
@@ -547,35 +649,19 @@ if __name__ == "__main__":
         if gen_cURL:
             if len(PROXIES) > 0 and yes_or_no("Use Proxies?"):
                 USE_PROXIES = True
-            post_curl_links = cURL_links(non_dup_links, USE_PROXIES)
+            post_curl_links, link_unique_curl = cURL_links(non_dup_links, use_proxy=USE_PROXIES, append=False)
         else:
-            post_curl_links = []
-            print("\nReading Links from CSV...")
-            with progressbar.bar.ProgressBar(max_value=progressbar.UnknownLength, widgets=widgets_unknown, redirect_stdout=True) as  pbar:
-                with open(DEDUP_CURL_LINK_FILE, 'r', newline='',  encoding='utf-8') as curl_csv:
-                    reader = csv.DictReader(curl_csv, fieldnames=['msgid', 'href', 'str', 'http', 'dup', 'useful'])
-                    for row in pbar(reader):
-                        post_curl_links.append(row)
-        
-        print("\nFiltering links after cURL results...")
-        filtered_links = proces_post_curl_links(post_curl_links)
+            post_curl_links, link_unique_curl = load_post_curl_links()
+            
+            if yes_or_no("Check for links with missing or '0' STATUS and recurl?"):
+                missing_links, post_curl_links, link_unique = update_links_curl_hash(link_unique, link_unique_curl)
+                print("Found [{}] missing or no STATUS links links.".format(len(missing_links)))
+                if len(missing_links) > 0:
+                    print("Running cURL on [{}] missing or no STATUS links...")
+                    if len(PROXIES) > 0 and yes_or_no("Use Proxies?"):
+                        USE_PROXIES = True
+                    missing_links, _ = cURL_links(missing_links, use_proxy=USE_PROXIES, append=True)
 
-        print("Writing links with unique effective-urls...")
-        filtered_write_unique = set()
-        filtered_msgids_unique = set()
-        with progressbar.bar.ProgressBar(widgets=widgets, redirect_stdout=True) as  pbar:  
-            pbar.max_value = len(filtered_links)
-            fields = ('msgid', 'href', 'str', 'effective-url')
-            with open(LINK_DEDUP_CURL_FILE, 'w', newline='',  encoding='utf-8') as dedups_curl_csv:
-                writer = csv.DictWriter(dedups_curl_csv, fieldnames=fields)
-                writer.writeheader()
-                for link in pbar(filtered_links):
-                    if link['http'] and link['useful'] and link['sha256_effective-url'] not in filtered_write_unique:
-                        writer.writerow({k:link[k] for k in link if k in fields })
-                        filtered_write_unique.add(link['sha256_effective-url'])
-                        filtered_msgids_unique.add(link['msgid'])
-                        non_dup_links.append(link)
+        filter_and_write_post_curl(post_curl_links)
         
-        print("\nFound [{}] potentially useful non duplicate links in [{}] Emails after cURL.".format(len(filtered_write_unique), len(filtered_msgids_unique)))
-
     print("\nDone.")
