@@ -45,7 +45,7 @@ LINK_DEDUP_CURL_FILE = "email_links_useful_curl.csv"
 # FILTER_PATTERNS_FILE = "filter_patterns.txt"
 FILTER_PATTERNS_FILE = "filter_patterns.yml"
 
-LINKS_PER_BATCH = 50
+LINKS_PER_BATCH = 200
 
 CURL_TIMEOUT =  60 #in seconds
 
