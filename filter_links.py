@@ -199,15 +199,17 @@ def check_usefull_and_dup_links(links : list):
                 else:
                     link_counts[sha256hex] = {'href': url.geturl(), 'count': 1}
                     link_hashes.add(sha256hex)
+    print("")
     
     return (links, link_hashes, dup_links, netlocs, hostnames, link_counts)
 
 
 def make_url_safe_bytes(url: str):
     split_url = urllib.parse.urlsplit(url)
-    split_url.path = urllib.parse.quote(split_url.path)
-    split_url.query = urllib.parse.quote_plus(split_url.query)
-    split_url.fragment = urllib.parse.quote_plus(split_url.fragment)
+    new_path = urllib.parse.quote(split_url.path)
+    new_query = urllib.parse.quote_plus(split_url.query)
+    new_fragment = urllib.parse.quote_plus(split_url.fragment)
+    split_url._replace(path=new_path, query=new_query, fragment=new_fragment)
     safe_url = urllib.parse.urlunsplit(split_url)
     try:
         safe_url_bytes = safe_url.encode('iso-8859-1')
@@ -407,10 +409,10 @@ def cURL_links(links : list, use_proxy=False, append=False):
                 print('\nProcessing batch {} ...'.format(b_num + 1))
                 cbatch = build_link_batch(batch, use_proxy)
                 timeouts += process_curl_batch(cbatch, pbar, use_proxy)
-                for link in cbatch:
+                for link in batch:
                     link_unique_curl['sha256_link'] = link
                     writer.writerow( {k:link[k] for k in link if k in fields} )
-
+        print("")
 
     print("\nProcceed links with [{}] timeout events".format(timeouts))
     
@@ -434,6 +436,7 @@ def proces_post_curl_links(links: list):
         pbar.max_value = len(links)
         for link in pbar(links):
             filter_post_curl_link(link)
+    print("")
     return [l for l in links if l['useful']]
 
 def update_links_curl_hash(links: dict, curl_links: dict):
@@ -457,18 +460,19 @@ def update_links_curl_hash(links: dict, curl_links: dict):
 def load_and_filter_links():
 
     links = []
-    print("\nReading Links from CSV...")
+    print("Reading Links from CSV...")
     with progressbar.bar.ProgressBar(max_value=progressbar.UnknownLength, widgets=widgets_unknown, redirect_stdout=True) as pbar:
         with open(LINKS_CSV_FILE, 'r', newline='',  encoding='utf-8') as links_csv:
             reader = csv.DictReader(links_csv, fieldnames=['msgid', 'href', 'str', 'http', 'dup', 'useful'])
             for row in pbar(reader):
                 links.append(row)
+    print("")
 
-    print("\nChecking for duplicate or useless links...")
+    print("Checking for duplicate or useless links...")
     links, _, dup_links, netlocs, hostnames, link_counts = check_usefull_and_dup_links(links)
                 
 
-    print("\nWriting extended file....")
+    print("Writing extended file....")
     with progressbar.bar.ProgressBar(max_value=progressbar.UnknownLength, widgets=widgets, redirect_stdout=True) as pbar:
         pbar.max_value = len(links)
         with open(CURL_LINKS_CSV_FILE, 'w', newline='',  encoding='utf-8') as links_csv:
@@ -476,8 +480,9 @@ def load_and_filter_links():
             writer.writeheader()
             for row in pbar(links):
                 writer.writerow( {k:row[k] for k in row if k != 'sha256_link'} )
+    print("")
 
-    print("\nWriting location list...")
+    print("Writing location list...")
     with open(NETLOC_FILE, 'w', newline='', encoding='utf-8') as netloc_csv:
         writer = csv.writer(netloc_csv)
         writer.writerow(('netloc',))
@@ -499,8 +504,9 @@ def load_and_filter_links():
             writer.writeheader()
             for h_key in pbar(dup_links):
                 writer.writerow(link_counts[h_key])
+    print("")
 
-    print("\nWriting de-duplicated useful links file...")
+    print("Writing de-duplicated useful links file...")
     link_unique = {}
     msgids_unique = set()
     non_dup_links = []
@@ -516,8 +522,9 @@ def load_and_filter_links():
                     link_unique[link['sha256_link']] = link
                     msgids_unique.add(link['msgid'])
                     non_dup_links.append(link)
+    print("")
 
-    print("\nFound [{}] potentially useful non duplicate links in [{}] Emails.".format(len(link_unique), len(msgids_unique)))
+    print("Found [{}] potentially useful non duplicate links in [{}] Emails.".format(len(link_unique), len(msgids_unique)))
     
     return (non_dup_links, link_unique)
 
@@ -526,22 +533,25 @@ def load_filter_links():
     msgids_unique = set()
     non_dup_links = []
 
+    print("Reading Result-Links from CSV...")
     with progressbar.bar.ProgressBar(max_value=progressbar.UnknownLength, widgets=widgets_unknown, redirect_stdout=True) as  pbar:  
-        with open(LINK_DEDUP_FILE, 'w', newline='',  encoding='utf-8') as dedups_csv:
+        with open(LINK_DEDUP_FILE, 'r', newline='',  encoding='utf-8') as dedups_csv:
             fields = ('msgid', 'href', 'str', 'sha256_link') 
             reader = csv.DictReader(dedups_csv, fieldnames=fields)
             for row in pbar(reader):
                 non_dup_links.append(row)
                 link_unique[row['sha256_link']] = row
+                msgids_unique.add(row['msgid'])
+    print("")
 
-    print("\nFound [{}] potentially useful non duplicate links in [{}] Emails.".format(len(link_unique), len(msgids_unique)))
+    print("Found [{}] potentially useful non duplicate links in [{}] Emails.".format(len(link_unique), len(msgids_unique)))
 
     return (non_dup_links, link_unique)
     
 def load_post_curl_links():
     post_curl_links = []
     link_unique_curl = {}
-    print("\nReading Links from CSV...")
+    print("Reading Links from CSV...")
     with progressbar.bar.ProgressBar(max_value=progressbar.UnknownLength, widgets=widgets_unknown, redirect_stdout=True) as  pbar:
         with open(DEDUP_CURL_LINK_FILE, 'r', newline='',  encoding='utf-8') as curl_csv:
             fields = ('msgid', 'href', 'str', 'status', 'effective-url', 'redirect-count', 'sha256_link')
@@ -549,6 +559,7 @@ def load_post_curl_links():
             for row in pbar(reader):
                 post_curl_links.append(row)
                 link_unique_curl[row['sha256_link']] = row
+    print("")
     return (post_curl_links, link_unique_curl)
 
 def filter_and_write_post_curl(post_curl_links: list):
@@ -569,8 +580,9 @@ def filter_and_write_post_curl(post_curl_links: list):
                     writer.writerow({k:link[k] for k in link if k in fields })
                     filtered_write_unique.add(link['sha256_effective-url'])
                     filtered_msgids_unique.add(link['msgid'])
+    print("")
     
-    print("\nFound [{}] potentially useful non duplicate links in [{}] Emails after cURL.".format(len(filtered_write_unique), len(filtered_msgids_unique)))
+    print("Found [{}] potentially useful non duplicate links in [{}] Emails after cURL.".format(len(filtered_write_unique), len(filtered_msgids_unique)))
 
 if __name__ == "__main__":
 
