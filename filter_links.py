@@ -323,7 +323,7 @@ def process_curl_batch(curl_batch, pbar : progressbar.ProgressBar, use_proxy=Fal
     multi, curls = curl_batch
     print("Hitting [{}] links with HTTP HEAD [{} proxies loaded]...".format(len(curls), len(PROXIES)))
     timeouts = process_curl_multi(multi, curls, pbar)
-    print("\nProcessing [{}] link results...".format(len(curls)))
+    print("Processing [{}] link results...".format(len(curls)))
     retry_noproxy = []
     for curl in curls:
         link, res, hndl = curl # type: dict, StringIO, pycurl.Curl
@@ -370,7 +370,7 @@ def process_curl_batch(curl_batch, pbar : progressbar.ProgressBar, use_proxy=Fal
     clean_curl_batch(curl_batch)
 
     if retry_noproxy:
-        print("\nReprocessing [{}] proxy failures without a proxy".format(len(retry_noproxy)))
+        print("Reprocessing [{}] proxy failures without a proxy".format(len(retry_noproxy)))
         timeout_cbatch = build_link_batch(retry_noproxy, use_proxy=False)
         timeouts += process_curl_batch(timeout_cbatch, pbar, use_proxy=False)
 
