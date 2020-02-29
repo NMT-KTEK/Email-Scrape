@@ -137,7 +137,9 @@ widgets_unknown = [
 #                 FILTERS.append(s)
 
 def yes_or_no(question):
-    reply = str(input('{} (y/n): '.format(question))).lower().strip()
+    reply = str(input('{} (Y/n): '.format(question))).lower().strip()
+    if not reply.strip():
+        return True
     if reply[0] == 'y':
         return True
     if reply[0] == 'n':
@@ -153,6 +155,8 @@ def is_useful(url : urllib.parse.ParseResult, s : str):
             if pattern in netloc:
                 return False
             if s and pattern in s.lower():
+                return False
+            if pattern in url.geturl().lower():
                 return False
         if RegexFilter.search(netloc):
             return False
@@ -380,7 +384,7 @@ def cURL_links(links : list, use_proxy=False, append=False):
     n = LINKS_PER_BATCH
     link_batches = [links[i * n:(i + 1) * n] for i in range((len(links) + n - 1) // n )]
     num_batches = len(link_batches)
-    print("Processing [{}] links in [{}] batches of [{}] links each...\n".format(
+    print("Processing [{}] links in [{}] batches of [{}] links each...".format(
         len(links), num_batches, n
     ))
 
@@ -419,18 +423,24 @@ def cURL_links(links : list, use_proxy=False, append=False):
     return (links, link_unique_curl)
 
 def filter_post_curl_link(link: dict):
-    if 'status' in link and link['status'] and int(link['status']) < 400 and int(link['status']) >= 200:
+    if 'status' in link and link['status']:
         try:
-            url = urlparse(link['effective-url'])
+            status = int(link['status'])
         except ValueError:
-            print("invalid link:  {}".format(link['effective-url']))
             link['useful'] = False
             return
-        
-        link['useful'] = is_useful(url, "")
-        if 'sha256_effective-url' not in link:
-            sha256hex = hashlib.sha256(link['effective-url'].encode()).hexdigest()
-            link['sha256_effective-url'] = sha256hex 
+        if status < 400 and status >= 200:
+            try:
+                url = urlparse(link['effective-url'])
+            except ValueError:
+                print("invalid link:  {}".format(link['effective-url']))
+                link['useful'] = False
+                return
+            
+            link['useful'] = is_useful(url, "")
+            if 'sha256_effective-url' not in link:
+                sha256hex = hashlib.sha256(link['effective-url'].encode()).hexdigest()
+                link['sha256_effective-url'] = sha256hex 
     else:
         link['useful'] = False
 
@@ -440,7 +450,7 @@ def proces_post_curl_links(links: list):
         for link in pbar(links):
             filter_post_curl_link(link)
     print("")
-    return [l for l in links if l['useful']]
+    return [l for l in links if ('useful' in l and l['useful'])]
 
 def update_links_curl_hash(links: dict, curl_links: dict):
     link_unique = {}
@@ -574,7 +584,7 @@ def filter_and_write_post_curl(post_curl_links: list):
     filtered_msgids_unique = set()
     with progressbar.bar.ProgressBar(widgets=widgets, redirect_stdout=True) as  pbar:  
         pbar.max_value = len(filtered_links)
-        fields = ('msgid', 'href', 'str', 'effective-url')
+        fields = ('msgid', 'href', 'str', 'status', 'effective-url', 'redirect-count')
         with open(LINK_DEDUP_CURL_FILE, 'w', newline='',  encoding='utf-8') as dedups_curl_csv:
             writer = csv.DictWriter(dedups_curl_csv, fieldnames=fields)
             writer.writeheader()

@@ -53,8 +53,25 @@ url_substring:
     - youtube.com
     - instagram.com
     - ebay.com
+    - donate
+    - secureserver.net
+    - unsubscribe
+    - /error
+    - error/
+    - www.culburnie.com
+    - 404.php
+    - news.php
+    - forward-to-friend.com
+    - home-page
+    - index.
+    - foursquare.com
+    - event/
+    - /home/
 
 substring:
+    - radio-charts
+    - sendtofriend
+    - donate
     - Read →
     - submit
     - find out
