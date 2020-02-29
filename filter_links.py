@@ -177,7 +177,7 @@ def check_usefull_and_dup_links(links : list):
             try:
                 url = urlparse(link['href'])
             except ValueError:
-                print("\ninvalid link:  {}".format(link['href']))
+                print("invalid link:  {}".format(link['href']))
                 continue
 
             link['http'] = url.scheme in ('http', 'https')
@@ -380,7 +380,7 @@ def cURL_links(links : list, use_proxy=False, append=False):
     n = LINKS_PER_BATCH
     link_batches = [links[i * n:(i + 1) * n] for i in range((len(links) + n - 1) // n )]
     num_batches = len(link_batches)
-    print("\nProcessing [{}] links in [{}] batches of [{}] links each...\n".format(
+    print("Processing [{}] links in [{}] batches of [{}] links each...\n".format(
         len(links), num_batches, n
     ))
 
@@ -563,7 +563,7 @@ def load_post_curl_links():
     return (post_curl_links, link_unique_curl)
 
 def filter_and_write_post_curl(post_curl_links: list):
-    print("\nFiltering links after cURL results...")
+    print("Filtering links after cURL results...")
     filtered_links = proces_post_curl_links(post_curl_links)
 
     print("Writing links with unique effective-urls...")
@@ -667,13 +667,13 @@ if __name__ == "__main__":
             
             if yes_or_no("Check for links with missing or '0' STATUS and recurl?"):
                 missing_links, post_curl_links, link_unique = update_links_curl_hash(link_unique, link_unique_curl)
-                print("Found [{}] missing or no STATUS links links.".format(len(missing_links)))
+                print("Found [{}] missing or no STATUS links.".format(len(missing_links)))
                 if len(missing_links) > 0:
-                    print("Running cURL on [{}] missing or no STATUS links...")
+                    print("Running cURL on [{}] missing or no STATUS links...".format(len(missing_links)))
                     if len(PROXIES) > 0 and yes_or_no("Use Proxies?"):
                         USE_PROXIES = True
                     missing_links, _ = cURL_links(missing_links, use_proxy=USE_PROXIES, append=True)
 
         filter_and_write_post_curl(post_curl_links)
         
-    print("\nDone.")
+    print("Done.")
