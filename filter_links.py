@@ -282,7 +282,7 @@ def build_link_batch(batch_links, use_proxy=False):
     for link in batch_links:
         c = build_curl(link, use_proxy)
         if c is None:
-            print("Unable to make cURL or href [{}]".format(link['href']))
+            print("Unable to make cURL of href [{}]".format(link['href']))
             continue
         curls.append(c)
         multi.add_handle(c[2])
@@ -419,7 +419,7 @@ def cURL_links(links : list, use_proxy=False, append=False):
     return (links, link_unique_curl)
 
 def filter_post_curl_link(link: dict):
-    if 'status' in link and link['status'] < 400 and link['status'] >= 200:
+    if 'status' in link and link['status'] and int(link['status']) < 400 and int(link['status']) >= 200:
         try:
             url = urlparse(link['effective-url'])
         except ValueError:
@@ -428,6 +428,9 @@ def filter_post_curl_link(link: dict):
             return
         
         link['useful'] = is_useful(url, "")
+        if 'sha256_effective-url' not in link:
+            sha256hex = hashlib.sha256(link['effective-url'].encode()).hexdigest()
+            link['sha256_effective-url'] = sha256hex 
     else:
         link['useful'] = False
 
@@ -448,9 +451,9 @@ def update_links_curl_hash(links: dict, curl_links: dict):
         else:
             link_unique[key] = links[key]
             missing.append(link_unique[key])
-        if not hasattr(link_unique[key], 'status'):
+        if 'status' not in link_unique[key]:
             missing.append(link_unique[key])
-        elif link_unique[key]['status']:
+        elif not link_unique[key]['status']:
             missing.append(link_unique[key])
 
     post_curl_links = list(link_unique.values())
@@ -576,7 +579,7 @@ def filter_and_write_post_curl(post_curl_links: list):
             writer = csv.DictWriter(dedups_curl_csv, fieldnames=fields)
             writer.writeheader()
             for link in pbar(filtered_links):
-                if link['http'] and link['useful'] and link['sha256_effective-url'] not in filtered_write_unique:
+                if link['useful'] and link['sha256_effective-url'] not in filtered_write_unique:
                     writer.writerow({k:link[k] for k in link if k in fields })
                     filtered_write_unique.add(link['sha256_effective-url'])
                     filtered_msgids_unique.add(link['msgid'])
