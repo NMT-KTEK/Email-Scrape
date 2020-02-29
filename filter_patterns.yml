@@ -67,6 +67,11 @@ url_substring:
     - foursquare.com
     - event/
     - /home/
+    - passes/
+
+url_regex:
+    - .*\.jpg$
+    - .*\.pdf$
 
 substring:
     - radio-charts

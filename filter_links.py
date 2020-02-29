@@ -166,6 +166,8 @@ def is_useful(url : urllib.parse.ParseResult, s : str):
         for pattern in URLSubstrings:
             if pattern in url.geturl().lower():
                 return False
+        if URLRegexFilter.search(url.geturl().lower()):
+            return False
         return True
 
 def check_usefull_and_dup_links(links : list):
@@ -437,7 +439,7 @@ def filter_post_curl_link(link: dict):
                 link['useful'] = False
                 return
             
-            link['useful'] = is_useful(url, "")
+            link['useful'] = is_useful(url, link['str'])
             if 'sha256_effective-url' not in link:
                 sha256hex = hashlib.sha256(link['effective-url'].encode()).hexdigest()
                 link['sha256_effective-url'] = sha256hex 
@@ -573,6 +575,7 @@ def load_post_curl_links():
                 post_curl_links.append(row)
                 link_unique_curl[row['sha256_link']] = row
     print("")
+    print("Loaded [{}] cURL links.". format(len(post_curl_links)))
     return (post_curl_links, link_unique_curl)
 
 def filter_and_write_post_curl(post_curl_links: list):
@@ -608,12 +611,14 @@ if __name__ == "__main__":
             sys.exit(1)
 
     try:
-        RegexPatterns = tuple(map(lambda s: s.strip().lower(), filters['regex']))
-        TextRegexPatterns = tuple(map(lambda s: s.strip().lower(), filters['text_regex']))
-        GlobalSubstrings = tuple(map(lambda s: s.strip().lower(), filters['substring']))
-        URLSubstrings = tuple(map(lambda s: s.strip().lower(), filters['url_substring']))
+            RegexPatterns = tuple(map(lambda s: s.strip().lower(), filters['regex']))
+            TextRegexPatterns = tuple(map(lambda s: s.strip().lower(), filters['text_regex']))
+            URLRegexPatterns = tuple(map(lambda s: s.strip().lower(), filters['url_regex']))
+            GlobalSubstrings = tuple(map(lambda s: s.strip().lower(), filters['substring']))
+            URLSubstrings = tuple(map(lambda s: s.strip().lower(), filters['url_substring']))
     except KeyError as err:
         print("Invalid filter file: ", err)
+        sys.exit(1)
 
     # print("Loading Proxies from file [{}]".format(PROXY_FILE))
     # with open(PROXY_FILE, 'r') as proxy_file:
@@ -640,7 +645,10 @@ if __name__ == "__main__":
         RegexFilter = re.compile(RegexPattern)
 
         TextRegexPattern = "".join(("(", ")|(".join(TextRegexPatterns), ")"))
-        TextRegexFilter = re.compile(RegexPattern)
+        TextRegexFilter = re.compile(TextRegexPattern)
+
+        URLRegexPatterns = "".join(("(", ")|(".join(URLRegexPatterns), ")"))
+        URLRegexFilter = re.compile(URLRegexPatterns)
     except re.error as err:
         print("Error compileing regex: ", err)
         sys.exit(1)
@@ -678,14 +686,15 @@ if __name__ == "__main__":
         else:
             post_curl_links, link_unique_curl = load_post_curl_links()
             
-            if yes_or_no("Check for links with missing or '0' STATUS and recurl?"):
-                missing_links, post_curl_links, link_unique = update_links_curl_hash(link_unique, link_unique_curl)
-                print("Found [{}] missing or no STATUS links.".format(len(missing_links)))
-                if len(missing_links) > 0:
-                    print("Running cURL on [{}] missing or no STATUS links...".format(len(missing_links)))
-                    if len(PROXIES) > 0 and yes_or_no("Use Proxies?"):
-                        USE_PROXIES = True
-                    missing_links, _ = cURL_links(missing_links, use_proxy=USE_PROXIES, append=True)
+            print("Merging pre and post cURL results...")
+            missing_links, post_curl_links, link_unique = update_links_curl_hash(link_unique, link_unique_curl)
+            print("After merge there are [{}] post cURL links.".format(len(post_curl_links)))
+            print("Found [{}] missing or no STATUS links.".format(len(missing_links)))
+            if len(missing_links) > 0:
+                print("Running cURL on [{}] missing or no STATUS links...".format(len(missing_links)))
+                if len(PROXIES) > 0 and yes_or_no("Use Proxies?"):
+                    USE_PROXIES = True
+                missing_links, _ = cURL_links(missing_links, use_proxy=USE_PROXIES, append=True)
 
         filter_and_write_post_curl(post_curl_links)
         
