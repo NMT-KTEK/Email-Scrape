@@ -61,7 +61,8 @@ url_substring:
     - www.culburnie.com
     - 404.php
     - news.php
-    - forward-to-friend.com
+    - forward-to-friend
+    - forward-to-friend
     - home-page
     - index.
     - foursquare.com
@@ -74,6 +75,13 @@ url_regex:
     - .*\.pdf$
 
 substring:
+    - join the
+    - see the
+    - read the
+    - unsub
+    - share
+    - "+1"
+    - call for
     - radio-charts
     - sendtofriend
     - donate
