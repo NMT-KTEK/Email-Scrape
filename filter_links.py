@@ -414,16 +414,16 @@ def cURL_links(links : list, use_proxy=False, append=False):
                     writer.writerow( {k:link[k] for k in link if k in fields} )
         print("")
 
-    print("\nProcceed links with [{}] timeout events".format(timeouts))
+    print("Procceed links with [{}] timeout events".format(timeouts))
     
     return (links, link_unique_curl)
 
 def filter_post_curl_link(link: dict):
-    if link['status'] < 400 and link['status'] >= 200:
+    if 'status' in link and link['status'] < 400 and link['status'] >= 200:
         try:
             url = urlparse(link['effective-url'])
         except ValueError:
-            print("\ninvalid link:  {}".format(link['effective-url']))
+            print("invalid link:  {}".format(link['effective-url']))
             link['useful'] = False
             return
         
